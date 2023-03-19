@@ -1,104 +1,347 @@
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras import preprocessing
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Embedding, Dense, Dropout, Conv1D, GlobalMaxPool1D, concatenate
-from Preprocess2 import Preprocess2
-from create_traindata import CreateTraindata
+import time
+import telegram
+import pymysql
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+import requests
+import random
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import datetime
+import logging
+from telegram import Update, error
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-class createcnn:
-    def __init__(self):
-        self.train()
+BOT_token = "봇 토큰 수정"
+BOT_NAME = '봇 이름 수정'
 
-    def train(self):
-        # 데이터 읽어오기
-        data = pd.read_csv("C:/capstone/train_data.csv")
-        text = data['text'].tolist()
-        label = data['label'].tolist()
+host = "127.0.0.1"
+port = 5050
 
-        p = Preprocess2(word2index_dic ="C:/capstone/chatbot2_dic.bin", userdic="C:/capstone/user_dic.tsv")
+n=0
 
-        # 단어 시퀀스 생성
-        sequences = []
-        for sentence in text:
-            pos = p.pos(sentence)
-            keywords = p.get_keywords(pos, without_tag=True)
-            seq = p.get_wordidx_sequence(keywords)
-            sequences.append(seq)
+global NUM
+NUM=4
 
-        # 단어 인덱스 시퀀스 벡터 생성
-        # 단어 시퀀스 벡터 크기
-        from GlobalParams import MAX_SEQ_LEN
-        padded_seqs = preprocessing.sequence.pad_sequences(sequences, maxlen=MAX_SEQ_LEN, padding='post')
+ENTER_NAME = 0
 
-        # 학습용, 검증용, 테스트용 데이터셋 생성
-        # 학습셋:검증셋:테스트셋 = 7:2:1
-        ds = tf.data.Dataset.from_tensor_slices((padded_seqs, label))
-        ds = ds.shuffle(len(text))
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO)
 
-        train_size = int(len(padded_seqs) * 0.7)
-        val_size = int(len(padded_seqs) * 0.2)
-        test_size = int(len(padded_seqs) * 0.1)
+logger = logging.getLogger(__name__)
 
-        train_ds = ds.take(train_size).batch(100)
-        val_ds = ds.take(train_size).take(val_size).batch(100)
-        test_ds = ds.take(train_size + val_size).take(test_size).batch(100)
+db = pymysql.connect(host='수정', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+cursor = db.cursor(pymysql.cursors.DictCursor)
+bot = telegram.Bot(BOT_token)
 
-        # 하이퍼파라미터 설정
-        dropout_prob = 0.5
-        EMB_SIZE = 128
-        EPOCH = 3
-        VOCAB_SIZE = len(p.word_index) + 1
+info_message = "안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
+                  "현재 다음 기능을 제공하고 있습니다.\n" \
+                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n" \
+                  "\n 커맨드를 입력해주시거나 클릭해주세요."
 
-        # CNN 모델 정의
-        input_layer = Input(shape=(MAX_SEQ_LEN,))
-        embedding_layer = Embedding(VOCAB_SIZE, EMB_SIZE, input_length=MAX_SEQ_LEN)(input_layer)
-        dropout_emb = Dropout(rate=dropout_prob)(embedding_layer)
+def error_handler(update: Update, context: CallbackContext) -> None:
+    """Log the error and send a message to the user."""
+    logger.warning(f'Update "{update}" caused error "{context.error}"')
+    try:
+        raise context.error
+    except error.BadRequest:
+        # handle BadRequest error
+        pass
+    except error.TimedOut:
+        # handle network connection errors
+        pass
+    except error.Unauthorized:
+        # handle unauthorized access errors
+        pass
+    except error.RetryAfter as e:
+        # handle throttling errors
+        logger.warning(f'Throttled by Telegram: {e.retry_after} seconds')
+        time.sleep(e.retry_after)
+    except error.TelegramError:
+        # handle all other Telegram errors
+        pass
+    except Exception:
+        # handle all other exceptions
+        pass
 
-        conv1 = Conv1D(
-            filters=128,
-            kernel_size=3,
-            padding='valid',
-            activation=tf.nn.relu)(dropout_emb)
-        pool1 = GlobalMaxPool1D()(conv1)
+def intentlearning(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id, text="ai 학습중 입니다.")
 
-        conv2 = Conv1D(
-            filters=128,
-            kernel_size=4,
-            padding='valid',
-            activation=tf.nn.relu)(dropout_emb)
-        pool2 = GlobalMaxPool1D()(conv2)
+    datas = {
+        "query": str(user_text)
+    }
+    url = "http://127.0.0.1:5000/learn/LEARNING"
+    requests.post(url, json=datas)
+    context.bot.send_message(chat_id=chat_id, text="success!")
 
-        conv3 = Conv1D(
-            filters=128,
-            kernel_size=5,
-            padding='valid',
-            activation=tf.nn.relu)(dropout_emb)
-        pool3 = GlobalMaxPool1D()(conv3)
 
-        train_data = CreateTraindata()
-        traindata, label_count = train_data.traindata(), train_data.label_count
-        print(label_count)
+def mariadbupload(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        'C:/capstone/pythonProject/capdi-378609-2fc18c110369.json',
+        scope)
+    client = gspread.authorize(creds)
 
-        # 3,4,5-gram 이후 합치기
-        concat = concatenate([pool1, pool2, pool3])
+    spreadsheet = client.open('capstone_question_data')
+    worksheet = spreadsheet.worksheet('학습용질문데이터')
+    data = worksheet.get_all_values()
 
-        hidden = Dense(128, activation = tf.nn.relu)(concat)
-        dropout_hidden = Dropout(rate=dropout_prob)(hidden)
-        logits = Dense(label_count+1, name='logits')(dropout_hidden)
-        predictions = Dense(label_count+1, activation=tf.nn.softmax)(logits)
+    query = "INSERT INTO testdata (clustering, question, answer) VALUES (%s, %s, %s)"
 
-#모델 생성
-        model = Model(inputs=input_layer, outputs= predictions)
-        model.compile(optimizer ='adam', loss = 'sparse_categorical_crossentropy', metrics=['accuracy'] )
 
-#모델 학습
-        model.fit(train_ds, validation_data = val_ds, epochs=EPOCH, verbose= 1)
+    for row in data:
+        cursor.execute(query, (row[0], row[1], row[2]))
+    context.bot.send_message(chat_id=chat_id,
+                             text="구글 스프레드시트 --> db 성공적으로 입력되었습니다.")
+    db.commit()
 
-#모델 평가(테스트 데이터셋 이용)
-        loss, accuracy = model.evaluate(test_ds, verbose=1)
-        print("Accuracy : %f" %(accuracy*100))
-        print("loss : %f" %(loss))
+def googlesheetupload(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    global n
+    now = datetime.datetime.now()
+    print(now)
+    n=n+1
+    if now.weekday() == 1 and now.hour == 0:
 
-#모델 저장
-        model.save("C:/capstone/intent_model.h5")
+        last_tuesday = now - datetime.timedelta(days=now.weekday(), weeks=1)
+        last_tuesday_str = last_tuesday.strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute(f"SELECT dataset.*, userinfo.* FROM dataset INNER JOIN userinfo ON dataset.id = userinfo.chatid WHERE dataset.timestamp >= '{last_tuesday_str}' AND dataset.timestamp < '{now.strftime('%Y-%m-%d %H:%M:%S')}'")
+        data = cursor.fetchall()
+        print(data)
+
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = ServiceAccountCredentials.from_json_keyfile_name(
+            'C:/capstone/pythonProject/capdi-378609-2fc18c110369.json',
+            scope)
+        client = gspread.authorize(creds)
+
+        week_num = last_tuesday.isocalendar()[1]
+
+        try:
+            worksheet = client.open('capstone_question_data').worksheet(str(n)+"주차")
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = client.open('capstone_question_data').add_worksheet(title=str(n)+"주차", rows=1, cols=1)
+
+        keys = ['num', 'name', 'id', 'type', 'question', 'timestamp']
+
+        for row_index, row_data in enumerate(data):
+            row_data_values = [row_data[key] for key in keys]
+
+            row_data_str = [str(cell) for cell in row_data_values]
+
+            range_ = f'A{row_index + 2}:{chr(ord("A") + len(row_data_str))}{row_index + 2}'
+
+            worksheet.update(range_, [row_data_str])
+
+        context.bot.send_message(chat_id=chat_id,
+                                 text="db --> 구글 스프레드시트로 성공적으로 입력되었습니다.")
+
+    else:
+        context.bot.send_message(chat_id=chat_id,
+                                 text="시간과 날짜가 맞지않습니다.")
+
+def help(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id, text="안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
+                  "현재 다음 기능을 제공하고 있습니다.\n" \
+                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n" \
+                  "\n 커맨드를 입력해주시거나 클릭해주세요.")
+
+
+def Submission_of_assignments(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id, text="과제 제출 기능입니다.\n 사용예시 - [과제 유형]질문 \n*양식을 지켜주세요*\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+    global NUM
+    NUM = 0
+
+
+def ai_question_answer(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id,
+                             text="AI기반 질의응답 기능입니다.\n 사용예시 - 이번주 과제 알려줘, 교수님 번호 알려줘 \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+    global NUM
+    NUM = 1
+
+
+def chat_test(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id,
+                             text="랜덤 문제 출제 기능입니다.\n 데이터베이스에 저장된 비슷한 유형의 문제 두개를 출제합니다.\n문제를보고 어떤 유형의 문제인지 작성해보세요\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+    global NUM
+    NUM = 2
+
+    global randnum
+    randnum = random.randint(1, 2)
+    print(randnum)
+
+    sql = "SELECT * FROM testdata WHERE clustering = %s ORDER BY RAND() LIMIT 2"
+    cursor.execute(sql, randnum)
+    result = cursor.fetchall()
+    for row in result:
+        context.bot.send_message(chat_id=chat_id, text=row['question'])
+
+def register_handler(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+
+    idx = user_text.find('/')
+    dbid = user_text[:idx]
+    dbname = user_text[idx + 1:]
+
+    select_data = [[dbid, dbname]]
+    sql = "SELECT num, name FROM userinfo WHERE num = %s AND name = %s "
+    cursor.executemany(sql, select_data)
+    result = cursor.fetchone()
+    print(dbid, dbname)
+
+    if result is not None:
+
+        context.bot.send_message(chat_id=chat_id, text="로그인 성공!")
+        sql2 = "SELECT chatid FROM userinfo WHERE num = %s AND name = %s "
+        cursor.executemany(sql2, select_data)
+        result2 = cursor.fetchone()
+
+        if result2['chatid'] is None:
+            select_data2 = [[chat_id, dbid, dbname]]
+            print(result2['chatid'])
+            sql3 = "UPDATE userinfo SET chatid = %s WHERE num = %s AND name = %s"
+            cursor.executemany(sql3, select_data2)
+            cursor.execute("CREATE TABLE HB" + str(
+                chat_id) + " (id VARCHAR(50) ,type VARCHAR(50),question VARCHAR(50),timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP())")
+            db.commit()
+
+            context.bot.send_message(chat_id=chat_id, text=info_message)
+            context.dispatcher.remove_handler(register_message_handler)
+            return ConversationHandler.END
+        else:
+            print(result2['chatid'])
+            context.bot.send_message(chat_id=chat_id, text=info_message)
+            context.dispatcher.remove_handler(register_message_handler)
+            return ConversationHandler.END
+
+    else:
+        context.bot.send_message(chat_id=chat_id, text="학번/이름이 올바르지 않습니다. \n/start를 입력하여 다시 로그인 해주시기 바랍니다.")
+        context.dispatcher.remove_handler(register_message_handler)
+        return ConversationHandler.END
+
+def start_handler(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    context.bot.send_message(chat_id=chat_id, text=f"안녕하세요 {BOT_NAME}입니다!\n로그인을 위해 학번/이름을 입력해주세요 \n ex) 20101312/홍길동")
+    return ENTER_NAME
+
+def handler(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+
+    if NUM == 0:
+        idx = user_text.find(']')
+        type = user_text[1:idx]
+        contexts = user_text[idx + 1:]
+        sql = "INSERT INTO dataset(id, type, question) VALUES (%s, %s, %s)"
+        sql2 = "INSERT INTO HB" + str(chat_id) + " (id, type, question) VALUES (%s, %s, %s)"
+        sql3 = "SELECT COUNT(id) FROM HB" + str(chat_id)
+        n=1
+        if (idx != -1):
+            cursor.execute(sql, (chat_id, type, contexts))
+            cursor.execute(sql2, (chat_id, type, contexts))
+            cursor.execute(sql3)
+            result = cursor.fetchone()
+            context.bot.send_message(chat_id=chat_id, text="문제유형 :" + type)
+            context.bot.send_message(chat_id=chat_id, text="내용 :" + contexts)
+            context.bot.send_message(chat_id=chat_id, text="제출완료")
+            context.bot.send_message(chat_id=chat_id, text="지금까지 " +str(result['COUNT(id)']) + "개 제출")
+            db.commit()
+
+        else:
+            context.bot.send_message(chat_id=chat_id, text="양식을 맞춰주세요.")
+
+    elif NUM == 1:
+        datas = {
+            "query": str(user_text)
+        }
+        url = "http://127.0.0.1:5000/query/NORMAL"
+        response = requests.post(url, json=datas)
+        context.bot.send_message(chat_id=chat_id, text=response.json()['Answer'])
+        if response.json()['Answer'] == "부정확한 질문이거나 답변할 수 없습니다.":
+            sql = "INSERT INTO failanswer (userquery ,aiquery, answer, intent) VALUES (%s, %s, %s, %s)"
+            cursor.execute(sql,
+                           (str(user_text), response.json()['Query'], response.json()['Answer'],
+                            response.json()['Intent']))
+        db.commit()
+
+    elif NUM == 2:
+        global testnum
+        if user_text == "for문":
+            testnum = 1
+
+        elif user_text == "if문":
+            testnum = 2
+
+        elif testnum == randnum:
+            context.bot.send_message(chat_id=chat_id, text="정답입니다.\n다른문제를 원하시면 /chattest 커맨드를 다시 입력해주세요 ")
+
+        else:
+            context.bot.send_message(chat_id=chat_id, text="다시 생각해보세요")
+
+    elif NUM == 4:
+        context.bot.send_message(chat_id=chat_id, text="커맨드를 입력해주세요")
+
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('start', start_handler)],
+    states={
+        ENTER_NAME: [MessageHandler(Filters.text & ~Filters.command, register_handler)],
+    },
+    fallbacks=[]
+)
+
+updater = Updater(token= BOT_token, use_context=True)
+dispatcher = updater.dispatcher
+
+register_message_handler = MessageHandler(Filters.text & ~Filters.command, register_handler)
+echo_handler = MessageHandler(Filters.text & ~Filters.command, handler)
+help_handler = CommandHandler('help', help)
+Submission_of_assignments_handler = CommandHandler('soa', Submission_of_assignments)
+ai_question_answer_handler = CommandHandler('aqa', ai_question_answer)
+chat_test_handler = CommandHandler('chattest', chat_test)
+google_sheet_upload = CommandHandler('googlesheetupload', googlesheetupload)
+mariadb_upload = CommandHandler('mariadbupload', mariadbupload)
+intent_learning = CommandHandler('intentlearning', intentlearning)
+
+dispatcher.add_handler(conv_handler)
+dispatcher.add_handler(register_message_handler)
+dispatcher.add_handler(echo_handler)
+dispatcher.add_handler(help_handler)
+dispatcher.add_handler(Submission_of_assignments_handler)
+dispatcher.add_handler(ai_question_answer_handler)
+dispatcher.add_handler(chat_test_handler)
+dispatcher.add_handler(google_sheet_upload)
+dispatcher.add_handler(mariadb_upload)
+dispatcher.add_handler(intent_learning)
+dispatcher.add_error_handler(error_handler)
+
+updater.start_polling()

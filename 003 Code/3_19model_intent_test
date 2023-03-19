@@ -1,0 +1,34 @@
+from Preprocess2 import Preprocess2
+from IntentModel import IntentModel
+
+p = Preprocess2(word2index_dic="C:/capstone/chatbot2_dic.bin",
+userdic="C:/capstone/user_dic.tsv")
+
+intent = IntentModel(model_name="C:/capstone/intent_model.h5", preprocess = p)
+
+
+query = "for문은 반복문 입니다."
+predict = intent.predict_class(query)
+predict_label = intent.labels[predict]
+print("="*30)
+print(query)
+print("의도 예측 클래스 : ", predict)
+print("의도 예측 레이블 : ", predict_label)
+
+
+query = "for문은 반복문인가요?"
+predict = intent.predict_class(query)
+predict_label = intent.labels[predict]
+print("="*30)
+print(query)
+print("의도 예측 클래스 : ", predict)
+print("의도 예측 레이블 : ", predict_label)
+
+
+query = "for문"
+predict = intent.predict_class(query)
+predict_label = intent.labels[predict]
+print("="*30)
+print(query)
+print("의도 예측 클래스 : ", predict)
+print("의도 예측 레이블 : ", predict_label)

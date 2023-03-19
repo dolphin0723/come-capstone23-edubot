@@ -45,4 +45,10 @@ class IntentModel:
 
         predict = self.model.predict(padded_seqs)
         predict_class = tf.math.argmax(predict, axis=1)
+
+        print(self.labels)
+        print(predict)
+        print(predict_class)
+
         return predict_class.numpy()[0]
+
