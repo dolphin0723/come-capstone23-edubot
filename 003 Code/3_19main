@@ -11,8 +11,8 @@ import logging
 from telegram import Update, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_token = "봇 토큰 수정"
-BOT_NAME = '봇 이름 수정'
+BOT_token = "6286404030:AAEUvDuYPmixLU2gnUU6LTxFuMPO03eL9xM"
+BOT_NAME = '테스트 봇'
 
 host = "127.0.0.1"
 port = 5050
@@ -30,7 +30,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-db = pymysql.connect(host='수정', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+db = pymysql.connect(host='125.138.99.145', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
 cursor = db.cursor(pymysql.cursors.DictCursor)
 bot = telegram.Bot(BOT_token)
 
@@ -183,24 +183,38 @@ def ai_question_answer(update, context)-> None:
     NUM = 1
 
 
-def chat_test(update, context)-> None:
-    user = update.message.from_user
+def chat_test(update, context):
+    user = update.message.from_user #사용자의 정보
     chat_id = update.message.chat_id
-    user_text = update.message.text
+    user_text = update.message.text #사용자의 텍스트
     context.bot.send_message(chat_id=chat_id,
                              text="랜덤 문제 출제 기능입니다.\n 데이터베이스에 저장된 비슷한 유형의 문제 두개를 출제합니다.\n문제를보고 어떤 유형의 문제인지 작성해보세요\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
-    global NUM
+    global NUM #전역변수
     NUM = 2
 
+    sql = "SELECT COUNT(*) FROM testdata"
+    cursor.execute(sql)
+    testcount = cursor.fetchone()
+    print(testcount["COUNT(*)"])
+
     global randnum
-    randnum = random.randint(1, 2)
+    randnum = random.randint(1, testcount["COUNT(*)"])
     print(randnum)
 
-    sql = "SELECT * FROM testdata WHERE clustering = %s ORDER BY RAND() LIMIT 2"
+    global randclustering
+    sql = "SELECT clustering FROM testdata WHERE testnum = %s"
     cursor.execute(sql, randnum)
-    result = cursor.fetchall()
-    for row in result:
-        context.bot.send_message(chat_id=chat_id, text=row['question'])
+    randclustering = cursor.fetchone()
+    print(randclustering['clustering'])
+
+    sql = "SELECT question FROM testdata WHERE clustering = %s ORDER BY RAND() LIMIT 2"
+    cursor.execute(sql, randclustering['clustering'])
+    result2 = cursor.fetchall()
+    print(result2)
+
+
+    for row in result2: #반복
+        context.bot.send_message(chat_id=chat_id, text=row['question'])#메세지보냄
 
 def register_handler(update, context)-> None:
     user = update.message.from_user
@@ -295,21 +309,21 @@ def handler(update, context)-> None:
         db.commit()
 
     elif NUM == 2:
-        global testnum
-        if user_text == "for문":
-            testnum = 1
-
-        elif user_text == "if문":
-            testnum = 2
-
-        elif testnum == randnum:
+        if user_text == randclustering['clustering']:
             context.bot.send_message(chat_id=chat_id, text="정답입니다.\n다른문제를 원하시면 /chattest 커맨드를 다시 입력해주세요 ")
 
         else:
             context.bot.send_message(chat_id=chat_id, text="다시 생각해보세요")
 
+
     elif NUM == 4:
         context.bot.send_message(chat_id=chat_id, text="커맨드를 입력해주세요")
+
+
+
+
+
+
 
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start_handler)],
