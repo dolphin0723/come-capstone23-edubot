@@ -11,7 +11,7 @@ import logging
 from telegram import Update, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_token = "6178643347:AAG1aXMwymNwLinmW3xrzsfeBUeovbNxAj4"
+BOT_token = ""
 BOT_NAME = '한밭대 과제제출 봇'
 
 host = "127.0.0.1"
@@ -24,7 +24,7 @@ NUM=4
 
 ENTER_NAME = 0
 
-#db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+#db = pymysql.connect()
 #cursor = db.cursor(pymysql.cursors.DictCursor)
 bot = telegram.Bot(BOT_token)
 
@@ -79,7 +79,7 @@ def intentlearning(update, context)-> None:
 
 
 def idnameupload(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
@@ -108,7 +108,7 @@ def idnameupload(update, context)-> None:
     db.close()
 
 def mariadbupload(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
@@ -136,7 +136,7 @@ def mariadbupload(update, context)-> None:
     db.close()
 
 def googlesheetupload(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
@@ -229,7 +229,7 @@ def ai_question_answer(update, context)-> None:
 
 
 def chat_test(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user #사용자의 정보
     chat_id = update.message.chat_id
@@ -267,7 +267,7 @@ def chat_test(update, context)-> None:
     db.close()
 
 def register_handler(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
@@ -333,7 +333,7 @@ def start_handler(update, context)-> None:
     return ENTER_NAME
 
 def handler(update, context)-> None:
-    db = pymysql.connect(host='127.0.0.1', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+    db = pymysql.connect()
     cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
