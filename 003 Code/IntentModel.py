@@ -51,4 +51,3 @@ class IntentModel:
         print(predict_class)
 
         return predict_class.numpy()[0]
-

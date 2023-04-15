@@ -88,17 +88,17 @@ class createcnn:
         logits = Dense(label_count+1, name='logits')(dropout_hidden)
         predictions = Dense(label_count+1, activation=tf.nn.softmax)(logits)
 
-#모델 생성
+        #모델 생성
         model = Model(inputs=input_layer, outputs= predictions)
         model.compile(optimizer ='adam', loss = 'sparse_categorical_crossentropy', metrics=['accuracy'] )
 
-#모델 학습
+        #모델 학습
         model.fit(train_ds, validation_data = val_ds, epochs=EPOCH, verbose= 1)
 
-#모델 평가(테스트 데이터셋 이용)
+        #모델 평가(테스트 데이터셋 이용)
         loss, accuracy = model.evaluate(test_ds, verbose=1)
         print("Accuracy : %f" %(accuracy*100))
         print("loss : %f" %(loss))
 
-#모델 저장
+        #모델 저장
         model.save("C:/capstone/intent_model.h5")

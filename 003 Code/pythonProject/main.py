@@ -11,10 +11,10 @@ import logging
 from telegram import Update, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_token = "봇 토큰"
+BOT_token = ""
 BOT_NAME = '한밭대 과제제출 봇'
 
-host = "127.0.0.1"
+host = ""
 port = 5050
 
 n=0
@@ -24,19 +24,28 @@ NUM=4
 
 ENTER_NAME = 0
 
-db = pymysql.connect("DB정보")
-cursor = db.cursor(pymysql.cursors.DictCursor)
 bot = telegram.Bot(BOT_token)
 
 info_message = "안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
                   "현재 다음 기능을 제공하고 있습니다.\n" \
-                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n" \
+                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
                   "\n 커맨드를 입력해주시거나 클릭해주세요. \n"
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
+
+def studentquerydata(update, context)-> None:
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    user_text = update.message.text
+    context.bot.send_message(chat_id=chat_id,
+                         text="학생분들의 질문 리스트 목록보기 기능입니다.\n 가공된 질문 리스트를 참고해서 ai에 궁금한 내용을 물어봐주세요. \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+    global NUM
+    NUM = 5
+    context.bot.send_message(chat_id=chat_id, text="몇 주차 과제 리스트를 보여드릴까요? \n*숫자만 입력해주세요*")
+
 
 
 def error_handler(update: Update, context: CallbackContext) -> None:
@@ -79,6 +88,8 @@ def intentlearning(update, context)-> None:
 
 
 def idnameupload(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
@@ -103,9 +114,11 @@ def idnameupload(update, context)-> None:
     context.bot.send_message(chat_id=chat_id,
                              text="학생데이터 스프레드시트 --> db 성공적으로 입력되었습니다.")
     db.commit()
-
+    db.close()
 
 def mariadbupload(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
@@ -122,27 +135,31 @@ def mariadbupload(update, context)-> None:
     worksheet = spreadsheet.worksheet('학습용질문데이터')
     data = worksheet.get_all_values()
 
-    query = "INSERT INTO testdata (clustering, question, answer) VALUES (%s, %s, %s)"
+    query = "INSERT INTO testdata (clustering, question, testnum) VALUES (%s, %s, %s)"
 
     for row in data:
-        cursor.execute(query, (row[0], row[1]), row[2])
+        cursor.execute(query, (row[0], row[1], row[2]))
     context.bot.send_message(chat_id=chat_id,
                              text="구글 스프레드시트 --> db 성공적으로 입력되었습니다.")
     db.commit()
+    db.close()
 
 def googlesheetupload(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
     global n
     now = datetime.datetime.now()
     print(now)
-    n=n+2
-    if now.weekday() == 1 and now.hour == 18:
+
+    n=n+1
+    if now.weekday() == 1:
 
         last_tuesday = now - datetime.timedelta(days=now.weekday(), weeks=1)
         last_tuesday_str = last_tuesday.strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute(f"SELECT dataset.*, userinfo.* FROM dataset INNER JOIN userinfo ON dataset.id = userinfo.chatid WHERE dataset.timestamp >= '{last_tuesday_str}' AND dataset.timestamp < '{now.strftime('%Y-%m-%d %H:%M:%S')}'")
+        cursor.execute(f"SELECT dataset.*, userinfo.* FROM dataset INNER JOIN userinfo ON dataset.id = userinfo.chatid WHERE dataset.timestamp > '{last_tuesday_str}' AND dataset.timestamp < '{now.strftime('%Y-%m-%d %H:%M:%S')}'")
         data = cursor.fetchall()
         print(data)
 
@@ -158,9 +175,9 @@ def googlesheetupload(update, context)-> None:
         week_num = last_tuesday.isocalendar()[1]
 
         try:
-            worksheet = client.open('capstone_question_data').worksheet(str(n)+"주차")
+            worksheet = client.open('capstone_question_data').worksheet(str(n+4)+"주차") #여기 부분에 작성했음 3/21일 기준 +1
         except gspread.exceptions.WorksheetNotFound:
-            worksheet = client.open('capstone_question_data').add_worksheet(title=str(n)+"주차", rows=1, cols=1)
+            worksheet = client.open('capstone_question_data').add_worksheet(title=str(n+4)+"주차", rows=1, cols=1)
 
         keys = ['num', 'name', 'id', 'type', 'question', 'timestamp']
 
@@ -171,7 +188,16 @@ def googlesheetupload(update, context)-> None:
 
             range_ = f'A{row_index + 2}:{chr(ord("A") + len(row_data_str))}{row_index + 2}'
 
-            worksheet.update(range_, [row_data_str])
+            while True:
+                try:
+                    worksheet.update(range_, [row_data_str])
+                    break
+                except gspread.exceptions.APIError as e:
+                    if e.response.status_code == 429:  # rate limit exceeded
+                        print("Quota exceeded, waiting...")
+                        time.sleep(60)  # wait for 1 minute
+                    else:
+                        raise e
 
         context.bot.send_message(chat_id=chat_id,
                                  text="db --> 구글 스프레드시트로 성공적으로 입력되었습니다.")
@@ -179,13 +205,16 @@ def googlesheetupload(update, context)-> None:
     else:
         context.bot.send_message(chat_id=chat_id,
                                  text="시간과 날짜가 맞지않습니다.")
+    db.commit()
+    db.close()
+
 def help(update, context)-> None:
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
     context.bot.send_message(chat_id=chat_id, text="안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
                   "현재 다음 기능을 제공하고 있습니다.\n" \
-                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n" \
+                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
                   "\n 커맨드를 입력해주시거나 클릭해주세요.")
 
 
@@ -203,17 +232,19 @@ def ai_question_answer(update, context)-> None:
     chat_id = update.message.chat_id
     user_text = update.message.text
     context.bot.send_message(chat_id=chat_id,
-                             text="AI기반 질의응답 기능입니다.\n 사용예시 - 이번주 과제 알려줘, 교수님 번호 알려줘 \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+                             text="AI기반 질의응답 기능입니다.\n 사용예시 - 이번주 과제 알려줘, 교수님 번호 알려줘, 질문과제에 넣은 내용도 됩니다. \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
     global NUM
     NUM = 1
 
 
-def chat_test(update, context):
+def chat_test(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user #사용자의 정보
     chat_id = update.message.chat_id
     user_text = update.message.text #사용자의 텍스트
     context.bot.send_message(chat_id=chat_id,
-                             text="랜덤 문제 출제 기능입니다.\n 데이터베이스에 저장된 비슷한 유형의 문제 두개를 출제합니다.\n문제를보고 어떤 유형의 문제인지 작성해보세요\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
+                             text="랜덤 문제 출제 기능입니다.\n 데이터베이스에 저장된 비슷한 유형의 문제 두개를 출제합니다.\n문제를보고 어떤 유형의 문제인지 작성해보세요\n\nex) 출력문에 대한 문제1, 출력문에 대한 문제2 답변: 출력문\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
     global NUM #전역변수
     NUM = 2
 
@@ -241,7 +272,12 @@ def chat_test(update, context):
     for row in result2: #반복
         context.bot.send_message(chat_id=chat_id, text=row['question'])#메세지보냄
 
+    db.commit()
+    db.close()
+
 def register_handler(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
@@ -268,8 +304,9 @@ def register_handler(update, context)-> None:
             sql3 = "UPDATE userinfo SET chatid = %s WHERE num = %s AND name = %s"
             cursor.executemany(sql3, select_data2)
             cursor.execute("CREATE TABLE HB" + str(
-                chat_id) + " (id VARCHAR(50) ,type VARCHAR(50),question VARCHAR(50),timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP())")
+                chat_id) + " (id VARCHAR(50) ,type VARCHAR(50),question VARCHAR(500),timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP())")
             db.commit()
+            db.close
             context.bot.send_message(chat_id=chat_id, text="로그인 성공!")
             context.bot.send_message(chat_id=chat_id, text=info_message)
             context.dispatcher.remove_handler(register_message_handler)
@@ -291,11 +328,12 @@ def register_handler(update, context)-> None:
                 return ConversationHandler.END
 
 
-
     else:
         context.bot.send_message(chat_id=chat_id, text="학번/이름이 올바르지 않습니다. \n/start를 입력하여 다시 로그인 해주시기 바랍니다.")
         context.dispatcher.remove_handler(register_message_handler)
         return ConversationHandler.END
+
+
 
 def start_handler(update, context)-> None:
     user = update.message.from_user
@@ -304,6 +342,8 @@ def start_handler(update, context)-> None:
     return ENTER_NAME
 
 def handler(update, context)-> None:
+    db = pymysql.connect()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
@@ -325,10 +365,12 @@ def handler(update, context)-> None:
             context.bot.send_message(chat_id=chat_id, text="내용 :" + contexts)
             context.bot.send_message(chat_id=chat_id, text="제출완료")
             context.bot.send_message(chat_id=chat_id, text="지금까지 " +str(result['COUNT(id)']) + "개 제출")
-            db.commit()
+
 
         else:
             context.bot.send_message(chat_id=chat_id, text="양식을 맞춰주세요.")
+        db.commit()
+        db.close()
 
     elif NUM == 1:
         datas = {
@@ -343,18 +385,39 @@ def handler(update, context)-> None:
                            (str(user_text), response.json()['Query'], response.json()['Answer'],
                             response.json()['Intent']))
         db.commit()
+        db.close()
 
     elif NUM == 2:
         if user_text == randclustering['clustering']:
             context.bot.send_message(chat_id=chat_id, text="정답입니다.\n다른문제를 원하시면 /chattest 커맨드를 다시 입력해주세요 ")
-
+            sql = "INSERT INTO testresult (chatid ,useranswer, chatbotanswer) VALUES (%s, %s, %s)"
+            cursor.execute(sql,
+                           (str(chat_id), str(user_text), randclustering['clustering']))
+            db.commit()
+            db.close()
         else:
             context.bot.send_message(chat_id=chat_id, text="다시 생각해보세요")
+            sql = "INSERT INTO testresult (chatid ,useranswer, chatbotanswer) VALUES (%s, %s, %s)"
+            cursor.execute(sql,
+                           (str(chat_id), str(user_text), randclustering['clustering']))
+            db.commit()
+            db.close()
 
     elif NUM == 4:
         context.bot.send_message(chat_id=chat_id, text="커맨드를 다시 입력해주세요")
+        db.close()
 
-
+    elif NUM == 5:
+        for i in range(1,15):
+            if user_text == str(i):
+                try:
+                    context.bot.send_message(chat_id=chat_id, text=user_text+"주차 과제 데이터 입니다.")
+                    excel_file = open(str(i)+'주차 데이터.xlsx', 'rb')
+                    context.bot.send_document(chat_id=chat_id, document=excel_file)
+                    excel_file.close()
+                except FileNotFoundError:
+                    context.bot.send_message(chat_id=chat_id, text="과제 리스트가 없거나, 아직 추가되지 않았습니다.")
+                break
 
 
 
@@ -381,7 +444,7 @@ google_sheet_upload = CommandHandler('googlesheetupload', googlesheetupload)
 mariadb_upload = CommandHandler('mariadbupload', mariadbupload)
 id_name_upload = CommandHandler('idnameupload', idnameupload)
 intent_learning = CommandHandler('intentlearning', intentlearning)
-
+student_querydata = CommandHandler('sqd', studentquerydata)
 
 dispatcher.add_handler(conv_handler)
 dispatcher.add_handler(register_message_handler)
@@ -395,5 +458,6 @@ dispatcher.add_handler(mariadb_upload)
 dispatcher.add_handler(id_name_upload)
 dispatcher.add_handler(intent_learning)
 dispatcher.add_error_handler(error_handler)
+dispatcher.add_handler(student_querydata)
 
 updater.start_polling()

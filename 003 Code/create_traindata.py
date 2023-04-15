@@ -173,7 +173,3 @@ class CreateTraindata:
         return
 
 
-
-
-
-
