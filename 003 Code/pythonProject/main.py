@@ -11,25 +11,26 @@ import logging
 from telegram import Update, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_token = ""
+BOT_token = "6178643347:AAG1aXMwymNwLinmW3xrzsfeBUeovbNxAj4"
 BOT_NAME = '한밭대 과제제출 봇'
-
-host = ""
+host = "127.0.0.1"
 port = 5050
 
 n=0
 
-global NUM
-NUM=4
-
+user_num = {}
+rand_num = {}
+rand_cluster = {}
 ENTER_NAME = 0
 
+#db = pymysql.connect()
+#cursor = db.cursor(pymysql.cursors.DictCursor)
 bot = telegram.Bot(BOT_token)
 
 info_message = "안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
-                  "현재 다음 기능을 제공하고 있습니다.\n" \
-                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
-                  "\n 커맨드를 입력해주시거나 클릭해주세요. \n"
+               "현재 다음 기능을 제공하고 있습니다.\n" \
+               "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
+               "\n 커맨드를 입력해주시거나 클릭해주세요. \n"
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO)
@@ -40,11 +41,14 @@ def studentquerydata(update, context)-> None:
     user = update.message.from_user
     chat_id = update.message.chat_id
     user_text = update.message.text
+    global user_num
     context.bot.send_message(chat_id=chat_id,
-                         text="학생분들의 질문 리스트 목록보기 기능입니다.\n 가공된 질문 리스트를 참고해서 ai에 궁금한 내용을 물어봐주세요. \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
-    global NUM
-    NUM = 5
+                             text="학생분들의 질문 리스트 목록보기 기능입니다.\n 가공된 질문 리스트를 참고해서 ai에 궁금한 내용을 물어봐주세요. \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
     context.bot.send_message(chat_id=chat_id, text="몇 주차 과제 리스트를 보여드릴까요? \n*숫자만 입력해주세요*")
+    if chat_id not in user_num:
+        user_num[chat_id] = 5
+    else:
+        user_num[chat_id] = 5
 
 
 
@@ -175,9 +179,9 @@ def googlesheetupload(update, context)-> None:
         week_num = last_tuesday.isocalendar()[1]
 
         try:
-            worksheet = client.open('capstone_question_data').worksheet(str(n+4)+"주차") #여기 부분에 작성했음 3/21일 기준 +1
+            worksheet = client.open('capstone_question_data').worksheet(str(n+7)+"주차") #여기 부분에 작성했음 3/21일 기준 +1
         except gspread.exceptions.WorksheetNotFound:
-            worksheet = client.open('capstone_question_data').add_worksheet(title=str(n+4)+"주차", rows=1, cols=1)
+            worksheet = client.open('capstone_question_data').add_worksheet(title=str(n+7)+"주차", rows=1, cols=1)
 
         keys = ['num', 'name', 'id', 'type', 'question', 'timestamp']
 
@@ -213,9 +217,9 @@ def help(update, context)-> None:
     chat_id = update.message.chat_id
     user_text = update.message.text
     context.bot.send_message(chat_id=chat_id, text="안녕하세요, 한밭대학교 교육용 챗봇입니다.\n" \
-                  "현재 다음 기능을 제공하고 있습니다.\n" \
-                  "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
-                  "\n 커맨드를 입력해주시거나 클릭해주세요.")
+                                                   "현재 다음 기능을 제공하고 있습니다.\n" \
+                                                   "1.과제 제출(질문) - /soa \n2.수업 질의응답 - /aqa\n3.챗봇 문제풀기 - /chattest\n4.질문 리스트 보기 - /sqd\n" \
+                                                   "\n 커맨드를 입력해주시거나 클릭해주세요.")
 
 
 def Submission_of_assignments(update, context)-> None:
@@ -223,8 +227,11 @@ def Submission_of_assignments(update, context)-> None:
     chat_id = update.message.chat_id
     user_text = update.message.text
     context.bot.send_message(chat_id=chat_id, text="과제 제출 기능입니다.\n 사용예시 - [과제 유형]질문 \n*양식을 지켜주세요*\nex)[for문]for문은 반복문인가요?\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
-    global NUM
-    NUM = 0
+    global user_num
+    if chat_id not in user_num:
+        user_num[chat_id] = 0
+    else:
+        user_num[chat_id] = 0
 
 
 def ai_question_answer(update, context)-> None:
@@ -233,8 +240,11 @@ def ai_question_answer(update, context)-> None:
     user_text = update.message.text
     context.bot.send_message(chat_id=chat_id,
                              text="AI기반 질의응답 기능입니다.\n 사용예시 - 이번주 과제 알려줘, 교수님 번호 알려줘, 질문과제에 넣은 내용도 됩니다. \n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
-    global NUM
-    NUM = 1
+    global user_num
+    if chat_id not in user_num:
+        user_num[chat_id] = 1
+    else:
+        user_num[chat_id] = 1
 
 
 def chat_test(update, context)-> None:
@@ -245,26 +255,32 @@ def chat_test(update, context)-> None:
     user_text = update.message.text #사용자의 텍스트
     context.bot.send_message(chat_id=chat_id,
                              text="랜덤 문제 출제 기능입니다.\n 데이터베이스에 저장된 비슷한 유형의 문제 두개를 출제합니다.\n문제를보고 어떤 유형의 문제인지 작성해보세요\n\nex) 출력문에 대한 문제1, 출력문에 대한 문제2 답변: 출력문\n\n다른기능을 사용하고 싶으시면 /help를 입력해주세요")
-    global NUM #전역변수
-    NUM = 2
+    global user_num
+    if chat_id not in user_num:
+        user_num[chat_id] = 2
+    else:
+        user_num[chat_id] = 2
 
     sql = "SELECT COUNT(*) FROM testdata"
     cursor.execute(sql)
     testcount = cursor.fetchone()
     print(testcount["COUNT(*)"])
 
-    global randnum
-    randnum = random.randint(1, testcount["COUNT(*)"])
-    print(randnum)
+    global rand_num
+    if chat_id not in user_num:
+        rand_num[chat_id] = random.randint(1, testcount["COUNT(*)"])
+        print(rand_num)
+    else:
+        rand_num[chat_id] = random.randint(1, testcount["COUNT(*)"])
 
-    global randclustering
+    global rand_cluster
     sql = "SELECT clustering FROM testdata WHERE testnum = %s"
-    cursor.execute(sql, randnum)
-    randclustering = cursor.fetchone()
-    print(randclustering['clustering'])
+    cursor.execute(sql, rand_num[chat_id])
+    rand_cluster[chat_id] = cursor.fetchone()
+    print(rand_cluster[chat_id]['clustering'])
 
     sql = "SELECT question FROM testdata WHERE clustering = %s ORDER BY RAND() LIMIT 2"
-    cursor.execute(sql, randclustering['clustering'])
+    cursor.execute(sql, rand_cluster[chat_id]['clustering'])
     result2 = cursor.fetchall()
     print(result2)
 
@@ -339,6 +355,12 @@ def start_handler(update, context)-> None:
     user = update.message.from_user
     chat_id = update.message.chat_id
     context.bot.send_message(chat_id=chat_id, text=f"안녕하세요 {BOT_NAME}입니다!\n로그인을 위해 학번/이름을 입력해주세요 \n ex) 20101312/홍길동")
+    global user_num
+    if chat_id not in user_num:
+        user_num[chat_id] = 4
+    else:
+        user_num[chat_id] = 4
+
     return ENTER_NAME
 
 def handler(update, context)-> None:
@@ -348,7 +370,7 @@ def handler(update, context)-> None:
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    if NUM == 0:
+    if user_num[chat_id] == 0:
         idx = user_text.find(']')
         type = user_text[1:idx]
         contexts = user_text[idx + 1:]
@@ -372,7 +394,7 @@ def handler(update, context)-> None:
         db.commit()
         db.close()
 
-    elif NUM == 1:
+    elif user_num[chat_id] == 1:
         datas = {
             "query": str(user_text)
         }
@@ -387,27 +409,23 @@ def handler(update, context)-> None:
         db.commit()
         db.close()
 
-    elif NUM == 2:
-        if user_text == randclustering['clustering']:
+    elif user_num[chat_id] == 2:
+        if user_text == rand_cluster[chat_id]['clustering']:
             context.bot.send_message(chat_id=chat_id, text="정답입니다.\n다른문제를 원하시면 /chattest 커맨드를 다시 입력해주세요 ")
             sql = "INSERT INTO testresult (chatid ,useranswer, chatbotanswer) VALUES (%s, %s, %s)"
             cursor.execute(sql,
-                           (str(chat_id), str(user_text), randclustering['clustering']))
+                           (str(chat_id), str(user_text), rand_cluster[chat_id]['clustering']))
             db.commit()
             db.close()
         else:
             context.bot.send_message(chat_id=chat_id, text="다시 생각해보세요")
             sql = "INSERT INTO testresult (chatid ,useranswer, chatbotanswer) VALUES (%s, %s, %s)"
             cursor.execute(sql,
-                           (str(chat_id), str(user_text), randclustering['clustering']))
+                           (str(chat_id), str(user_text), rand_cluster[chat_id]['clustering']))
             db.commit()
             db.close()
 
-    elif NUM == 4:
-        context.bot.send_message(chat_id=chat_id, text="커맨드를 다시 입력해주세요")
-        db.close()
-
-    elif NUM == 5:
+    elif user_num[chat_id] == 5:
         for i in range(1,15):
             if user_text == str(i):
                 try:
@@ -419,6 +437,9 @@ def handler(update, context)-> None:
                     context.bot.send_message(chat_id=chat_id, text="과제 리스트가 없거나, 아직 추가되지 않았습니다.")
                 break
 
+    elif user_num[chat_id] == 4:
+        context.bot.send_message(chat_id=chat_id, text="커맨드를 다시 입력해주세요")
+        db.close()
 
 
 
