@@ -30,7 +30,7 @@ class CreateTraindata:
             "https://www.googleapis.com/auth/drive",
         ]
         creds = ServiceAccountCredentials.from_json_keyfile_name(
-            'C:/capstone/pythonProject/capdi-378609-2fc18c110369.json',
+            '',
             scope)
         client = gspread.authorize(creds)
 
