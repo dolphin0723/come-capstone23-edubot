@@ -46,7 +46,7 @@ print("텍스트 전처리가 로드 완료")
 intent = IntentModel(model_name='C:/capstone/intent_model.h5', preprocess=p)
 print("의도 파악 모델 로드 완료")
 
-df = pd.read_excel('C:/capstone/질문 답변 데이터 '+str(n+3)+'주차.xlsx')
+df = pd.read_excel('C:/capstone/질문 답변 데이터 '+str(n+8)+'주차.xlsx')
 print("엑셀 파일 로드 완료")
 
 create_embedding_data = CreateEmbeddingData(df=df, preprocess=p)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
             intent = IntentModel(model_name='C:/capstone/intent_model.h5', preprocess=p)
             print("의도 파악 모델 로드 완료")
             n += 1
-            df = pd.read_excel('C:/capstone/질문 답변 데이터 '+str(n+3)+'주차.xlsx')
+            df = pd.read_excel('C:/capstone/질문 답변 데이터 '+str(n+8)+'주차.xlsx')
             print("엑셀 파일 로드 완료")
             create_embedding_data = CreateEmbeddingData(df=df, preprocess=p)
             create_embedding_data.create_pt_file()

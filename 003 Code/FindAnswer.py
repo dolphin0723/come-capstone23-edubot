@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer, util
 
 class FindAnswer:
     def __init__(self, preprocess, df, embedding_data):
-        
+
         #챗봇 텍스트 전처리기
         self.p = preprocess
         self.model = SentenceTransformer('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
@@ -24,7 +24,7 @@ class FindAnswer:
         query_pre = ""
         for k in keywords:
             query_pre +=str(k)
-        
+
         #전처리된 질문 인코딩 및 텐서화
         query_encode = self.model.encode(query_pre)
         query_tensor = torch.tensor(query_encode)
@@ -34,18 +34,23 @@ class FindAnswer:
         best_sim_idx = int(np.argmax(cos_sim))
         selected_qes = self.df['질문(Query)'][best_sim_idx]
 
-
+        if self.df['의도(Intent)'][best_sim_idx] == intent:
             #선택된 질문 문장 인코딩
-        selected_qes_encode = self.model.encode(selected_qes)
+            selected_qes_encode = self.model.encode(selected_qes)
 
             #유사도 점수 측정
-        score = dot(query_tensor, selected_qes_encode)/(norm(query_tensor)*norm(selected_qes_encode))
+            score = dot(query_tensor, selected_qes_encode)/(norm(query_tensor)*norm(selected_qes_encode))
 
             #답변
-        answer = self.df['답변(Answer)'][best_sim_idx]
-        imageUrl = self.df['답변 이미지'][best_sim_idx]
-        success = True
+            answer = self.df['답변(Answer)'][best_sim_idx]
+            imageUrl = self.df['답변 이미지'][best_sim_idx]
+            success = True
 
-
+        else:
+            selected_qes = "nan"
+            score = 0
+            answer = "nan"
+            imageUrl = "nan"
+            success = False
 
         return selected_qes, score, answer, imageUrl, success

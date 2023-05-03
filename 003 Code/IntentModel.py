@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras import preprocessing
-from create_traindata import CreateTraindata
 
 
 # 의도 분류 모델 모듈
@@ -9,17 +8,7 @@ class IntentModel:
     def __init__(self, model_name, preprocess):
 
         # 의도 클래스 별 레이블
-        self.labels = {0: "번호", 1: "수업", 2: "과제"}
-
-        train_data = CreateTraindata()
-        traindata, label_count = train_data.traindata(), train_data.label_count
-        print(label_count)
-        keyword_ai = train_data.keyword_ai
-        print(keyword_ai)
-        for i in range(label_count-2):
-            self.labels[i+3] = keyword_ai[i]
-
-        print(self.labels)
+        self.labels = {0: "기타", 1: "내장모듈", 2: "내장클래스",  3: "내장함수", 4: "문자열", 5: "반복문", 6: "변수", 7: "시퀀스자료형", 8: "연산자", 9: "입력문", 10: "조건문", 11: "출력문", 12: "파이썬", 13: "파일"}
 
         # 의도 분류 모델 불러오기
         self.model = load_model(model_name)
@@ -45,9 +34,4 @@ class IntentModel:
 
         predict = self.model.predict(padded_seqs)
         predict_class = tf.math.argmax(predict, axis=1)
-
-        print(self.labels)
-        print(predict)
-        print(predict_class)
-
         return predict_class.numpy()[0]
