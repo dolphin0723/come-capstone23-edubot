@@ -14,8 +14,8 @@ import logging
 from telegram import Update, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-BOT_token = "6286404030:AAEUvDuYPmixLU2gnUU6LTxFuMPO03eL9xM"
-BOT_NAME = '파이썬 프로그래밍 중간고사 시험 봇'
+BOT_token = ""
+BOT_NAME = ''
 
 host = "127.0.0.1"
 port = 5050
@@ -33,7 +33,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-db = pymysql.connect(host='118.42.98.241', user='root', password='040416', db='qtdata', charset='utf8', port=3306)
+db = pymysql.connect(host='', user='', password='', db='', charset='', port=)
 cursor = db.cursor(pymysql.cursors.DictCursor)
 bot = telegram.Bot(BOT_token)
 
