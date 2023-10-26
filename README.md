@@ -17,23 +17,22 @@
   - 학생들을 지도할 때 1:1로 살피고 개별 피드백을 해주는 것이 중요하지만 현실적으로 어려움 이러한 문제를 해결하기위해 챗봇 개발을 목표로함
   
 ## System Design
+  - ### 시스템 구성도
+![System_configuration_diagram](https://github.com/HBNU-SWUNIV/come-capstone23-edubot/assets/52690408/2575ad2f-041f-4cb7-9dc1-667a29311e15)
   - ### System Requirements
     - 챗봇 AI 질의응답 기능
       	- 질의 입력 	
     - 온라인 저지 기능
     	- 문제 등록
      	- 문제 삭제
-	- 코드 제출 
+	- 코드 제출
     
 ## Case Study
   - ### Description
-  - 시간과 장소에 구애받지 않고 1:1 개별 피드백을 제공하여 맞춤형 학습 경험을 제공한다.  
-  - 프로그래밍 능력 향상과 코딩테스트 대비 실습 환경을 제공한다. 
-  
   
 ## Conclusion
-  - ### OOO
-  - ### OOO
+  - 시간과 장소에 구애받지 않고 1:1 개별 피드백을 제공하여 맞춤형 학습 경험을 제공한다.  
+  - 프로그래밍 능력 향상과 코딩테스트 대비 실습 환경을 제공한다. 
   
 ## Project Outcome
 - ### 2023 년 한국전기전자학회 학술대회 
